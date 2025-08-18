@@ -1,4 +1,4 @@
-const API_BASE_URL = "https://coach-platform-fast-production.up.railway.app:8080/api";
+const API_BASE_URL = "https://coach-platform-fast-production.up.railway.app/api";
 const APP_ID = 1;
 
 export async function sendNewMessage(user_id, conversation_id, input) {

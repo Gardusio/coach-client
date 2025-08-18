@@ -4,7 +4,7 @@ const PROFILE_PATH = "/morisio.json";
 const WEARABLES_PATH = "/morisio.csv";
 const APP_ID = "1";
 const API_BASE_URL =
-  "https://coach-platform-fast-production.up.railway.app:8080/api";
+  "https://coach-platform-fast-production.up.railway.app/api";
 
 export async function syncWearables() {
   try {
