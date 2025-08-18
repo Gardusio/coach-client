@@ -3,7 +3,8 @@ import Papa from "papaparse";
 const PROFILE_PATH = "/morisio.json";
 const WEARABLES_PATH = "/morisio.csv";
 const APP_ID = "1";
-const API_BASE_URL = "http://localhost:8000/api";
+const API_BASE_URL =
+  "https://coach-platform-fast-production.up.railway.app:8000/api";
 
 export async function syncWearables() {
   try {
@@ -42,7 +43,7 @@ export async function syncWearables() {
     const csvRes = await fetch(WEARABLES_PATH);
     const csvText = await csvRes.text();
 
-    console.log(csvText)
+    console.log(csvText);
 
     const parsed = Papa.parse(csvText, {
       header: true,
@@ -50,7 +51,7 @@ export async function syncWearables() {
       skipEmptyLines: true,
     });
 
-    console.log(parsed)
+    console.log(parsed);
 
     const biometricData = parsed.data.map((row) => {
       const { date, ...metrics } = row;
@@ -78,7 +79,7 @@ export async function syncWearables() {
       body: JSON.stringify(payload),
     });
 
-    console.log(JSON.stringify(payload))
+    console.log(JSON.stringify(payload));
 
     const data = await res.json();
 
