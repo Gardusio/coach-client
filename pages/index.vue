@@ -9,13 +9,40 @@
       </div>
 
       <div class="p-4">
+        <!-- Fitbit connect/sync button -->
         <button
           @click="handleSync"
-          class="w-full bg-green-600 text-white py-2 px-4 rounded hover:bg-green-700 mb-2"
+          :disabled="syncing"
+          class="w-full flex items-center justify-center bg-green-600 text-white py-2 px-4 rounded hover:bg-green-700 mb-2 disabled:opacity-50"
         >
-          Sync Wearables
+          <svg
+            v-if="syncing"
+            class="animate-spin h-5 w-5 text-white mr-2"
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+          >
+            <circle
+              class="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              stroke-width="4"
+            ></circle>
+            <path
+              class="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+            ></path>
+          </svg>
+
+          <span v-if="!fitbitStore.isAuthorized">Connect Fitbit</span>
+          <span v-else-if="!fitbitStore.lastSyncedAt">Sync Wearables</span>
+          <span v-else>Last synced {{ lastSyncedAgo }}</span>
         </button>
 
+        <!-- Chat buttons -->
         <button
           @click="handleNewChat"
           class="w-full bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 mb-4"
@@ -23,6 +50,7 @@
           New Chat
         </button>
 
+        <!-- Conversation list -->
         <ul class="space-y-1 overflow-y-auto">
           <li
             v-for="conversation in conversations"
@@ -134,14 +162,25 @@
   </div>
 </template>
 
-<script setup>
-import { onMounted, onUpdated, ref } from "vue";
+<script setup lang="ts">
+import { onMounted, onUpdated, ref, computed } from "vue";
 import { storeToRefs } from "pinia";
 import { useConversationStore } from "@/stores/conversation";
 import { useErrorStore } from "@/stores/error";
+import { useFitbitAuth } from "~/composables/useFitbitAuth";
+import { useFitbitAuthStore } from "~/stores/fitbitAuth";
+import { useFitbitMetrics } from "~/composables/useFitbitMetrics";
 import Error from "@/components/Error.vue";
 
-const { $wearablesApi,  $chatApi  } = useNuxtApp();
+const { $wearablesApi, $chatApi } = useNuxtApp();
+
+// Fitbit
+const { beginAuth } = useFitbitAuth();
+const fitbitStore = useFitbitAuthStore();
+const { fetchLastThreeMonths } = useFitbitMetrics();
+
+// Syncing state
+const syncing = ref(false);
 
 // Store setup
 const conversationStore = useConversationStore();
@@ -180,6 +219,7 @@ const scrollToBottom = () => {
 onMounted(() => {
   loadConversations();
   scrollToBottom();
+  fitbitStore.hydrateSession();
 });
 onUpdated(scrollToBottom);
 
@@ -196,15 +236,93 @@ function isActive(conversation) {
   return activeConversation.value?.id === conversation.id;
 }
 
+// Derived label for "last synced"
+const lastSyncedAgo = computed(() => {
+  if (!fitbitStore.lastSyncedAt) return "";
+  const diffMs = Date.now() - fitbitStore.lastSyncedAt;
+  const diffH = Math.floor(diffMs / 1000 / 60 / 60);
+  if (diffH < 1) {
+    const diffM = Math.floor(diffMs / 1000 / 60);
+    return `${diffM}m ago`;
+  }
+  return `${diffH}h ago`;
+});
 
 // Sync wearables
 async function handleSync() {
   try {
-    const result = await $wearablesApi.syncWearables();
+    if (!fitbitStore.isAuthorized) {
+      await beginAuth();
+      return;
+    }
+
+    syncing.value = true;
+
+    // fetch Fitbit metrics
+    const rows = await fetchLastThreeMonths();
+
+    // Build biometric data payload
+    const biometricData = rows.map((row) => {
+      const { date, ...metrics } = row;
+      const cleanedMetrics = Object.fromEntries(
+        Object.entries(metrics)
+          .filter(([_, v]) => v !== null && v !== "")
+          .map(([k, v]) => [
+            k,
+            typeof v === "number" ? v : parseFloat(String(v)),
+          ])
+      );
+      return { date, metrics: cleanedMetrics };
+    });
+
+    // Load static profile (temporary)
+    const profileRes = await fetch("/morisio.json");
+    const rawProfile = await profileRes.json();
+
+    const {
+      gender,
+      age,
+      height,
+      weight,
+      conditions,
+      preferences,
+      dietary_restrictions,
+      goals,
+      blocks,
+    } = rawProfile;
+
+    const timestamp = new Date().toISOString();
+    const profile = {
+      gender,
+      age,
+      height,
+      weight,
+      conditions,
+      preferences,
+      dietary_restrictions,
+      goals,
+      blocks,
+      timestamp,
+    };
+
+    const payload = {
+      user_id: rawProfile.id,
+      app_id: "1",
+      profile,
+      data: biometricData,
+    };
+
+    const result = await $wearablesApi.syncWearables(payload);
+
+    // mark sync in store
+    fitbitStore.markSynced();
+
     alert(`Sync successful: ${result.rows_upserted} records`);
-  } catch (err) {
+  } catch (err: any) {
     setError(err.message);
     alert(`Sync failed: ${err.message}`);
+  } finally {
+    syncing.value = false;
   }
 }
 </script>

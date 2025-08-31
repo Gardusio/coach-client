@@ -6,7 +6,7 @@ const router = useRouter()
 
 onMounted(async () => {
   await handleCallback()
-  router.replace('/connect')
+  router.replace('/')
 })
 </script>
 

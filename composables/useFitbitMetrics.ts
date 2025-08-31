@@ -107,9 +107,9 @@ export function useFitbitMetrics() {
   async function fetchLastThreeMonths(): Promise<DailyMetrics[]> {
     const end = new Date();
     const start = new Date();
-    start.setUTCMonth(end.getUTCMonth() - 3);
+    start.setUTCMonth(end.getUTCMonth() - 1);
 
-    const batches = splitIntoBatches(start, end, 30);
+    const batches = splitIntoBatches(start, end, 1);
     const map: Record<string, DailyMetrics> = {};
 
     function ensure(d: string) {
