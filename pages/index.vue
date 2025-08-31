@@ -217,7 +217,7 @@
 import { onMounted, onUpdated, ref, computed } from "vue";
 import { storeToRefs } from "pinia";
 import { useConversationStore } from "~/stores/conversation";
-import { useErrorStore } from "@/stores/error";
+import { useErrorStore } from "~/stores/error";
 import { useFitbitAuth } from "~/composables/useFitbitAuth";
 import { useFitbitAuthStore } from "~/stores/fitbitAuth";
 import { useFitbitMetrics } from "~/composables/useFitbitMetrics";
