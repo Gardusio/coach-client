@@ -1,30 +1,40 @@
+// stores/conversation.ts
 import { defineStore } from "pinia";
 import { ref } from "vue";
-
-const MORISIO = "morisio"; // fixed user
+import { useErrorStore } from "@/stores/error";
+import { useUserProfileStore } from "@/stores/userProfile";
 
 export const useConversationStore = defineStore("conversation", () => {
   const { $chatApi } = useNuxtApp();
 
-  const conversations = ref([]);
-  const activeConversation = ref(null);
-  const messages = ref([]);
+  const conversations = ref<any[]>([]);
+  const activeConversation = ref<any | null>(null);
+  const messages = ref<any[]>([]);
   const loading = ref(false);
   const loadingResponse = ref(false);
+
+  function getUserId(): string {
+    const userProfileStore = useUserProfileStore();
+    if (!userProfileStore.profile?.id) {
+      throw new Error("User profile not set. Please enter a profile first.");
+    }
+    return userProfileStore.profile.id;
+  }
 
   async function loadConversations() {
     loading.value = true;
     try {
-      const result = await $chatApi.getConversations(MORISIO); // fixed user
-      conversations.value = result;
-    } catch (err) {
+      const userId = getUserId();
+      const result = await $chatApi.getConversations(userId);
+      conversations.value = result || [];
+    } catch (err: any) {
       useErrorStore().setError(err.message);
     } finally {
       loading.value = false;
     }
   }
 
-  async function fetchMessages(conversation) {
+  async function fetchMessages(conversation: any) {
     if (!conversation) {
       messages.value = [];
       return;
@@ -33,7 +43,7 @@ export const useConversationStore = defineStore("conversation", () => {
     try {
       const data = await $chatApi.getConversationMessages(conversation);
       messages.value = data;
-    } catch (err) {
+    } catch (err: any) {
       useErrorStore().setError(`Error fetching messages: ${err.message}`);
     } finally {
       loading.value = false;
@@ -45,21 +55,22 @@ export const useConversationStore = defineStore("conversation", () => {
     messages.value = [];
   }
 
-  function handleConversationSelect(conversation) {
+  function handleConversationSelect(conversation: any) {
     activeConversation.value = conversation;
     fetchMessages(conversation);
   }
 
-  async function sendMessage(input) {
+  async function sendMessage(input: string) {
     useErrorStore().clearError();
     loadingResponse.value = true;
     if (!input.trim()) return;
 
+    const userId = getUserId();
     const conversationId = activeConversation.value?.id || null;
 
     const userMessage = {
       conversation_id: conversationId,
-      user_id: MORISIO,
+      user_id: userId,
       sender: "user",
       content: input,
     };
@@ -68,7 +79,7 @@ export const useConversationStore = defineStore("conversation", () => {
 
     try {
       const coachResponse = await $chatApi.sendNewMessage(
-        MORISIO,
+        userId,
         conversationId,
         input
       );
@@ -85,17 +96,18 @@ export const useConversationStore = defineStore("conversation", () => {
         activeConversation.value = newConversation;
         conversations.value.push(newConversation);
       }
-    } catch (err) {
+    } catch (err: any) {
       loadingResponse.value = false;
       useErrorStore().setError(`Error sending message: ${err.message}`);
     }
   }
 
-  async function removeConversation(conversationId) {
+  async function removeConversation(conversationId: string) {
     useErrorStore().clearError();
     loading.value = true;
     try {
-      await $chatApi.deleteConversation(MORISIO, conversationId);
+      const userId = getUserId();
+      await $chatApi.deleteConversation(userId, conversationId);
       conversations.value = conversations.value.filter(
         (c) => c.id !== conversationId
       );
@@ -103,7 +115,7 @@ export const useConversationStore = defineStore("conversation", () => {
         activeConversation.value = null;
         messages.value = [];
       }
-    } catch (err) {
+    } catch (err: any) {
       useErrorStore().setError(`Error deleting conversation: ${err.message}`);
     } finally {
       loading.value = false;

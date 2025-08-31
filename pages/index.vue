@@ -8,12 +8,12 @@
         <h2 class="text-lg font-semibold">Personal Coach</h2>
       </div>
 
-      <div class="p-4">
+      <div class="p-4 space-y-2">
         <!-- Fitbit connect/sync button -->
         <button
           @click="handleSync"
           :disabled="syncing"
-          class="w-full flex items-center justify-center bg-green-600 text-white py-2 px-4 rounded hover:bg-green-700 mb-2 disabled:opacity-50"
+          class="w-full flex items-center justify-center bg-green-600 text-white py-2 px-4 rounded hover:bg-green-700 disabled:opacity-50"
         >
           <svg
             v-if="syncing"
@@ -42,16 +42,24 @@
           <span v-else>Last synced {{ lastSyncedAgo }}</span>
         </button>
 
+        <!-- Enter Profile Button -->
+        <button
+          @click="showProfileModal = true"
+          class="w-full bg-purple-600 text-white py-2 px-4 rounded hover:bg-purple-700"
+        >
+          Enter Profile
+        </button>
+
         <!-- Chat buttons -->
         <button
           @click="handleNewChat"
-          class="w-full bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 mb-4"
+          class="w-full bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700"
         >
           New Chat
         </button>
 
         <!-- Conversation list -->
-        <ul class="space-y-1 overflow-y-auto">
+        <ul class="space-y-1 overflow-y-auto mt-4">
           <li
             v-for="conversation in conversations"
             :key="conversation.id"
@@ -159,17 +167,61 @@
         </div>
       </div>
     </div>
+
+    <!-- Profile Modal -->
+    <div
+      v-if="showProfileModal"
+      class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50"
+    >
+      <div class="bg-white p-6 rounded-lg w-1/2">
+        <h3 class="text-lg font-semibold mb-4">Enter Profile (JSON)</h3>
+        <textarea
+          v-model="profileJson"
+          rows="12"
+          class="w-full border rounded p-2 font-mono text-sm"
+          placeholder='{
+    "id": "morisio",
+    "username": "morisio",
+    "gender": "MALE",
+    "age": 64,
+    "bmi": 23.4,
+    "height": 180,
+    "weight": 76,
+    "conditions": [],
+    "preferences": ["running", "cycling"],
+    "dietary_restrictions": [],
+    "goals": ["longevity"],
+    "blocks": []
+}'
+        />
+        <div class="flex justify-end mt-4 space-x-2">
+          <button
+            @click="showProfileModal = false"
+            class="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300"
+          >
+            Cancel
+          </button>
+          <button
+            @click="saveProfile"
+            class="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700"
+          >
+            Save
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { onMounted, onUpdated, ref, computed } from "vue";
 import { storeToRefs } from "pinia";
-import { useConversationStore } from "@/stores/conversation";
+import { useConversationStore } from "~/stores/conversation";
 import { useErrorStore } from "@/stores/error";
 import { useFitbitAuth } from "~/composables/useFitbitAuth";
 import { useFitbitAuthStore } from "~/stores/fitbitAuth";
 import { useFitbitMetrics } from "~/composables/useFitbitMetrics";
+import { useUserProfileStore } from "@/stores/userProfile";
 import Error from "@/components/Error.vue";
 
 const { $wearablesApi, $chatApi } = useNuxtApp();
@@ -178,6 +230,23 @@ const { $wearablesApi, $chatApi } = useNuxtApp();
 const { beginAuth } = useFitbitAuth();
 const fitbitStore = useFitbitAuthStore();
 const { fetchLastThreeMonths } = useFitbitMetrics();
+
+// Profile
+const userProfileStore = useUserProfileStore();
+const showProfileModal = ref(false);
+const profileJson = ref("");
+
+// Save profile
+function saveProfile() {
+  try {
+    const parsed = JSON.parse(profileJson.value);
+    userProfileStore.setProfile(parsed);
+    showProfileModal.value = false;
+    alert("Profile saved");
+  } catch (err) {
+    alert("Invalid JSON");
+  }
+}
 
 // Syncing state
 const syncing = ref(false);
@@ -220,6 +289,7 @@ onMounted(() => {
   loadConversations();
   scrollToBottom();
   fitbitStore.hydrateSession();
+  userProfileStore.hydrate();
 });
 onUpdated(scrollToBottom);
 
@@ -275,38 +345,21 @@ async function handleSync() {
       return { date, metrics: cleanedMetrics };
     });
 
-    // Load static profile (temporary)
-    const profileRes = await fetch("/morisio.json");
-    const rawProfile = await profileRes.json();
-
-    const {
-      gender,
-      age,
-      height,
-      weight,
-      conditions,
-      preferences,
-      dietary_restrictions,
-      goals,
-      blocks,
-    } = rawProfile;
-
-    const timestamp = new Date().toISOString();
-    const profile = {
-      gender,
-      age,
-      height,
-      weight,
-      conditions,
-      preferences,
-      dietary_restrictions,
-      goals,
-      blocks,
-      timestamp,
-    };
+    // Profile: prefer user-entered, fallback to morisio.json
+    let profile: any;
+    if (userProfileStore.profile) {
+      profile = {
+        ...userProfileStore.profile,
+        timestamp: new Date().toISOString(),
+      };
+    } else {
+      const profileRes = await fetch("/morisio.json");
+      const rawProfile = await profileRes.json();
+      profile = { ...rawProfile, timestamp: new Date().toISOString() };
+    }
 
     const payload = {
-      user_id: rawProfile.id,
+      user_id: profile.id,
       app_id: "1",
       profile,
       data: biometricData,
