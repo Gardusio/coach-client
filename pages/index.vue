@@ -372,8 +372,7 @@ async function handleSync() {
 
     alert(`Sync successful: ${result.rows_upserted} records`);
   } catch (err: any) {
-    setError(err.message);
-    alert(`Sync failed: ${err.message}`);
+    setError(err);
   } finally {
     syncing.value = false;
   }

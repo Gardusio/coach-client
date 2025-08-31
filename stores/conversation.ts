@@ -28,7 +28,7 @@ export const useConversationStore = defineStore("conversation", () => {
       const result = await $chatApi.getConversations(userId);
       conversations.value = result || [];
     } catch (err: any) {
-      useErrorStore().setError(err.message);
+      useErrorStore().setError(err);
     } finally {
       loading.value = false;
     }
@@ -44,7 +44,8 @@ export const useConversationStore = defineStore("conversation", () => {
       const data = await $chatApi.getConversationMessages(conversation);
       messages.value = data;
     } catch (err: any) {
-      useErrorStore().setError(`Error fetching messages: ${err.message}`);
+
+      useErrorStore().setError(err);
     } finally {
       loading.value = false;
     }
@@ -83,7 +84,7 @@ export const useConversationStore = defineStore("conversation", () => {
         conversationId,
         input
       );
-      messages.value.push(coachResponse);
+      messages.value?.push(coachResponse);
       loadingResponse.value = false;
 
       if (!activeConversation.value) {
@@ -94,11 +95,11 @@ export const useConversationStore = defineStore("conversation", () => {
           title: userMessage.content.slice(0, 20) + "...",
         };
         activeConversation.value = newConversation;
-        conversations.value.push(newConversation);
+        conversations.value?.push(newConversation);
       }
     } catch (err: any) {
       loadingResponse.value = false;
-      useErrorStore().setError(`Error sending message: ${err.message}`);
+      useErrorStore().setError(err);
     }
   }
 
@@ -116,7 +117,7 @@ export const useConversationStore = defineStore("conversation", () => {
         messages.value = [];
       }
     } catch (err: any) {
-      useErrorStore().setError(`Error deleting conversation: ${err.message}`);
+      useErrorStore().setError(err);
     } finally {
       loading.value = false;
     }
