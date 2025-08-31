@@ -34,6 +34,8 @@ export function useFitbitAuth() {
     const state = randomState();
     sessionStorage.setItem(OAUTH_STATE_KEY, state);
 
+    console.log("PUBLIC FITBIT CONFIG", publicCfg)
+
     // Fitbit authorization endpoint + PKCE (S256). Redirect URI must be registered.
     // Required params per Fitbit: client_id, scope, code_challenge, code_challenge_method, response_type=code.
     // We also pass redirect_uri and state.
