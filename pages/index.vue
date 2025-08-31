@@ -139,8 +139,9 @@ import { onMounted, onUpdated, ref } from "vue";
 import { storeToRefs } from "pinia";
 import { useConversationStore } from "@/stores/conversation";
 import { useErrorStore } from "@/stores/error";
-import { syncWearables } from "@/api/sync";
 import Error from "@/components/Error.vue";
+
+const { $wearablesApi,  $chatApi  } = useNuxtApp();
 
 // Store setup
 const conversationStore = useConversationStore();
@@ -195,10 +196,11 @@ function isActive(conversation) {
   return activeConversation.value?.id === conversation.id;
 }
 
+
 // Sync wearables
 async function handleSync() {
   try {
-    const result = await syncWearables();
+    const result = await $wearablesApi.syncWearables();
     alert(`Sync successful: ${result.rows_upserted} records`);
   } catch (err) {
     setError(err.message);

@@ -1,14 +1,11 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
-import {
-  getConversations,
-  getConversationMessages,
-  sendNewMessage,
-  deleteConversation,
-} from "@/api/chat";
 
 const MORISIO = "morisio"; // fixed user
+
 export const useConversationStore = defineStore("conversation", () => {
+  const { $chatApi } = useNuxtApp();
+
   const conversations = ref([]);
   const activeConversation = ref(null);
   const messages = ref([]);
@@ -18,7 +15,7 @@ export const useConversationStore = defineStore("conversation", () => {
   async function loadConversations() {
     loading.value = true;
     try {
-      const result = await getConversations(MORISIO); // fixed user
+      const result = await $chatApi.getConversations(MORISIO); // fixed user
       conversations.value = result;
     } catch (err) {
       useErrorStore().setError(err.message);
@@ -34,7 +31,7 @@ export const useConversationStore = defineStore("conversation", () => {
     }
     loading.value = true;
     try {
-      const data = await getConversationMessages(conversation);
+      const data = await $chatApi.getConversationMessages(conversation);
       messages.value = data;
     } catch (err) {
       useErrorStore().setError(`Error fetching messages: ${err.message}`);
@@ -63,14 +60,18 @@ export const useConversationStore = defineStore("conversation", () => {
     const userMessage = {
       conversation_id: conversationId,
       user_id: MORISIO,
-      sender: "user", 
+      sender: "user",
       content: input,
     };
 
     messages.value.push(userMessage);
 
     try {
-      const coachResponse = await sendNewMessage(MORISIO, conversationId, input);
+      const coachResponse = await $chatApi.sendNewMessage(
+        MORISIO,
+        conversationId,
+        input
+      );
       messages.value.push(coachResponse);
       loadingResponse.value = false;
 
@@ -94,7 +95,7 @@ export const useConversationStore = defineStore("conversation", () => {
     useErrorStore().clearError();
     loading.value = true;
     try {
-      await deleteConversation(MORISIO, conversationId);
+      await $chatApi.deleteConversation(MORISIO, conversationId);
       conversations.value = conversations.value.filter(
         (c) => c.id !== conversationId
       );
