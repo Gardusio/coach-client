@@ -103,11 +103,15 @@ function computeStress(
   return clamp(50, 100, score) - 10;
 }
 
+function safe<T>(res: PromiseSettledResult<T>): T | null {
+  return res.status === "fulfilled" ? res.value : null;
+}
+
 export function useFitbitMetrics() {
   async function fetchLastThreeMonths(): Promise<DailyMetrics[]> {
     const end = new Date();
     const start = new Date();
-    start.setUTCMonth(end.getUTCMonth() - 1);
+    start.setUTCMonth(end.getUTCMonth() - 3); // full 3 months
 
     const batches = splitIntoBatches(start, end, 30);
     const map: Record<string, DailyMetrics> = {};
@@ -164,7 +168,7 @@ export function useFitbitMetrics() {
         sleep,
         br,
         cardio,
-      ] = await Promise.all([
+      ] = await Promise.allSettled([
         get<any>(`1/user/-/activities/steps/date/${startYmd}/${endYmd}.json`),
         get<any>(
           `1/user/-/activities/distance/date/${startYmd}/${endYmd}.json`
@@ -186,19 +190,25 @@ export function useFitbitMetrics() {
           `1/user/-/activities/minutesVeryActive/date/${startYmd}/${endYmd}.json`
         ),
         get<any>(`1/user/-/activities/heart/date/${startYmd}/${endYmd}.json`),
-        get<any>(`1/user/-/hrv/date/${startYmd}/${endYmd}.json`).catch(
-          () => null
-        ),
-        get<any>(`1.2/user/-/sleep/date/${startYmd}/${endYmd}.json`).catch(
-          () => null
-        ),
-        get<any>(`1/user/-/br/date/${startYmd}/${endYmd}.json`).catch(
-          () => null
-        ),
-        get<any>(`1/user/-/cardioscore/date/${startYmd}/${endYmd}.json`).catch(
-          () => null
-        ),
+        get<any>(`1/user/-/hrv/date/${startYmd}/${endYmd}.json`),
+        get<any>(`1.2/user/-/sleep/date/${startYmd}/${endYmd}.json`),
+        get<any>(`1/user/-/br/date/${startYmd}/${endYmd}.json`),
+        get<any>(`1/user/-/cardioscore/date/${startYmd}/${endYmd}.json`),
       ]);
+
+      const stepsData = safe(steps);
+      const distData = safe(dist);
+      const floorsData = safe(floors);
+      const calsData = safe(cals);
+      const sedentaryData = safe(sedentary);
+      const lightActData = safe(lightAct);
+      const modActData = safe(modAct);
+      const veryActData = safe(veryAct);
+      const hrData = safe(hr);
+      const hrvData = safe(hrv);
+      const sleepData = safe(sleep);
+      const brData = safe(br);
+      const cardioData = safe(cardio);
 
       function assign(
         dataset: any[] | undefined,
@@ -214,33 +224,39 @@ export function useFitbitMetrics() {
         }
       }
 
-      assign(steps?.["activities-steps"], "steps", (r) => Number(r.value));
-      assign(dist?.["activities-distance"], "distance", (r) => Number(r.value));
-      assign(floors?.["activities-floors"], "floors", (r) => Number(r.value));
-      assign(cals?.["activities-calories"], "calories", (r) => Number(r.value));
+      assign(stepsData?.["activities-steps"], "steps", (r) => Number(r.value));
+      assign(distData?.["activities-distance"], "distance", (r) =>
+        Number(r.value)
+      );
+      assign(floorsData?.["activities-floors"], "floors", (r) =>
+        Number(r.value)
+      );
+      assign(calsData?.["activities-calories"], "calories", (r) =>
+        Number(r.value)
+      );
       assign(
-        sedentary?.["activities-minutesSedentary"],
+        sedentaryData?.["activities-minutesSedentary"],
         "sedentary_minutes",
         (r) => Number(r.value)
       );
       assign(
-        lightAct?.["activities-minutesLightlyActive"],
+        lightActData?.["activities-minutesLightlyActive"],
         "lightly_active_minutes",
         (r) => Number(r.value)
       );
       assign(
-        modAct?.["activities-minutesFairlyActive"],
+        modActData?.["activities-minutesFairlyActive"],
         "moderately_active_minutes",
         (r) => Number(r.value)
       );
       assign(
-        veryAct?.["activities-minutesVeryActive"],
+        veryActData?.["activities-minutesVeryActive"],
         "very_active_minutes",
         (r) => Number(r.value)
       );
 
-      if (hr?.["activities-heart"]) {
-        for (const row of hr["activities-heart"]) {
+      if (hrData?.["activities-heart"]) {
+        for (const row of hrData["activities-heart"]) {
           const d = row.dateTime;
           if (!d) continue;
           const entry = ensure(d);
@@ -266,8 +282,8 @@ export function useFitbitMetrics() {
         }
       }
 
-      if (hrv?.hrv) {
-        for (const row of hrv.hrv) {
+      if (hrvData?.hrv) {
+        for (const row of hrvData.hrv) {
           const d = row.dateTime;
           if (!d) continue;
           const val = row.value?.dailyRmssd;
@@ -275,8 +291,8 @@ export function useFitbitMetrics() {
         }
       }
 
-      if (sleep?.sleep) {
-        for (const s of sleep.sleep) {
+      if (sleepData?.sleep) {
+        for (const s of sleepData.sleep) {
           const d = s.dateOfSleep;
           if (!d) continue;
           const e = ensure(d);
@@ -292,8 +308,8 @@ export function useFitbitMetrics() {
         }
       }
 
-      if (br?.br) {
-        for (const row of br.br) {
+      if (brData?.br) {
+        for (const row of brData.br) {
           const d = row.dateTime;
           if (!d) continue;
           const val = row.value?.breathingRate;
@@ -302,8 +318,8 @@ export function useFitbitMetrics() {
         }
       }
 
-      if (cardio?.cardioScore) {
-        for (const row of cardio.cardioScore) {
+      if (cardioData?.cardioScore) {
+        for (const row of cardioData.cardioScore) {
           const d = row.dateTime;
           if (!d) continue;
           const raw = row.value?.vo2Max;
