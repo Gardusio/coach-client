@@ -8,6 +8,7 @@ export const useConversationStore = defineStore("conversation", () => {
   const { $chatApi } = useNuxtApp();
 
   const conversations = ref<any[]>([]);
+  const errorStore = useErrorStore();
   const activeConversation = ref<any | null>(null);
   const messages = ref<any[]>([]);
   const loading = ref(false);
@@ -28,7 +29,7 @@ export const useConversationStore = defineStore("conversation", () => {
       const result = await $chatApi.getConversations(userId);
       conversations.value = result || [];
     } catch (err: any) {
-      useErrorStore().setError(err);
+      errorStore.setError(err);
     } finally {
       loading.value = false;
     }
@@ -45,7 +46,7 @@ export const useConversationStore = defineStore("conversation", () => {
       messages.value = data;
     } catch (err: any) {
 
-      useErrorStore().setError(err);
+      errorStore.setError(err);
     } finally {
       loading.value = false;
     }
@@ -62,7 +63,7 @@ export const useConversationStore = defineStore("conversation", () => {
   }
 
   async function sendMessage(input: string) {
-    useErrorStore().clearError();
+    errorStore.clearError();
     loadingResponse.value = true;
     if (!input.trim()) return;
 
@@ -99,12 +100,12 @@ export const useConversationStore = defineStore("conversation", () => {
       }
     } catch (err: any) {
       loadingResponse.value = false;
-      useErrorStore().setError(err);
+      errorStore.setError(err);
     }
   }
 
   async function removeConversation(conversationId: string) {
-    useErrorStore().clearError();
+    errorStore.clearError();
     loading.value = true;
     try {
       const userId = getUserId();
@@ -117,7 +118,7 @@ export const useConversationStore = defineStore("conversation", () => {
         messages.value = [];
       }
     } catch (err: any) {
-      useErrorStore().setError(err);
+      errorStore.setError(err);
     } finally {
       loading.value = false;
     }

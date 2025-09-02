@@ -3,6 +3,7 @@ import { defineStore } from "pinia";
 import { ref } from "vue";
 
 function normalizeError(err): string {
+  console.error("normalizeError", err)
   if (err instanceof Error) {
     return err.message;
   }
