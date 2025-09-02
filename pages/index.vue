@@ -282,7 +282,7 @@ const input = ref("");
 const bottomRef = ref(null);
 const scrollToBottom = () => {
   if (bottomRef.value) {
-    bottomRef.value.scrollIntoView({ behavior: "smooth" });
+    bottomRef.value?.scrollIntoView({ behavior: "smooth" });
   }
 };
 onMounted(() => {
